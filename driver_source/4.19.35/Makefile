@@ -44,6 +44,12 @@ obj-$(CONFIG_MYIR_CAMERA_OV5640) += myir_ov5640_camera_mipi.o
 veye327_camera_mipi_v2-objs := veye327_mipi_v2.o
 obj-$(CONFIG_MXC_CAMERA_VEYE327_MIPI_V2) += veye327_camera_mipi_v2.o
 
+csimx307_camera_mipi_v2-objs := csimx307_mipi_v2.o
+obj-$(CONFIG_MXC_CAMERA_CSIMX307_MIPI_V2) += csimx307_camera_mipi_v2.o
+
+cssc132_camera_mipi_v2-objs := cssc132_mipi_v2.o
+obj-$(CONFIG_MXC_CAMERA_CSSC132_MIPI_V2) += cssc132_camera_mipi_v2.o
+
 ov5647_camera_mipi-objs := ov5647_mipi.o
 obj-$(CONFIG_MXC_CAMERA_OV5647_MIPI) += ov5647_camera_mipi.o
 

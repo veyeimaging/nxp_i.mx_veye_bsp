@@ -74,6 +74,18 @@ config MXC_CAMERA_VEYE327_MIPI_V2
 	help
 	  If you plan to use the veye327 Camera with mipi interface in your MXC system, say Y here.
 
+config MXC_CAMERA_CSIMX307_MIPI_V2
+	tristate "csimx307 camera support using mipi"
+	depends on MXC_MIPI_CSI && I2C
+	help
+	  If you plan to use the csimx307 Camera with mipi interface in your MXC system, say Y here.
+      
+config MXC_CAMERA_CSSC132_MIPI_V2
+	tristate "cssc132 camera support using mipi"
+	depends on MXC_MIPI_CSI && I2C
+	help
+	  If you plan to use the cssc132 Camera with mipi interface in your MXC system, say Y here.
+      
 config MXC_CAMERA_OV5647_MIPI
 	tristate "OmniVision ov5647 camera support using mipi"
 	depends on MXC_MIPI_CSI && I2C
