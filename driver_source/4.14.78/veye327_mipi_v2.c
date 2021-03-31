@@ -33,7 +33,7 @@
 #define VEYE327_REG_YUV_SEQ         0x001e
 
 
-enum veye327_mode {
+enum veye327_mode{
 	veye327_mode_MIN = 0,
 	veye327_mode_1080P_1920_1080 = 0,
 	veye327_mode_MAX = 1,
@@ -150,10 +150,20 @@ static const struct i2c_device_id veye327_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, veye327_id);
 
+#ifdef CONFIG_OF
+static const struct of_device_id veye327_mipi_v2_of_match[] = {
+	{ .compatible = "veye,veye327_mipi",
+	},
+	{ /* sentinel */ }
+};
+
 static struct i2c_driver veye327_i2c_driver = {
 	.driver = {
 		  .owner = THIS_MODULE,
 		  .name  = "veye327_mipi",
+    #ifdef CONFIG_OF
+		  .of_match_table = of_match_ptr(veye327_mipi_v2_of_match),
+    #endif
 		  },
 	.probe  = veye327_probe,
 	.remove = veye327_remove,
@@ -162,6 +172,7 @@ static struct i2c_driver veye327_i2c_driver = {
 
 static const struct veye327_datafmt veye327_colour_fmts[] = {
 	{MEDIA_BUS_FMT_YUYV8_2X8, V4L2_COLORSPACE_REC709},
+    {MEDIA_BUS_FMT_UYVY8_2X8, V4L2_COLORSPACE_REC709},
 };
 
 //todo here
@@ -202,12 +213,11 @@ static inline void veye327_power_down(struct veye327 *sensor,int enable)
 		gpio_set_value_cansleep(sensor->pwn_gpio, 1);
 
 	msleep(2);*/
-    
 }
 
 static void veye327_reset(struct veye327 *sensor)
 {
-	if (sensor->rst_gpio < 0 || sensor->pwn_gpio < 0)
+	if (sensor->rst_gpio < 0)
 		return;
 
 	/* camera reset */
@@ -279,6 +289,12 @@ static int veye327_regulator_enable(struct device *dev)
 
 	return ret;
 }
+
+
+
+MODULE_DEVICE_TABLE(of, ov5640_mipi_v2_of_match);
+#endif
+
 
 static s32 veye327_write_reg(struct veye327 *sensor,u16 reg, u8 val)
 {
@@ -629,13 +645,25 @@ static int veye327_set_fmt(struct v4l2_subdev *sd,
 	const struct veye327_datafmt *fmt = veye327_find_datafmt(mf->code);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct veye327 *sensor = to_veye327(client);
-
+    struct device *dev = &sensor->i2c_client->dev;
+    
 	if (!fmt) {
 		mf->code	= veye327_colour_fmts[0].code;
 		mf->colorspace	= veye327_colour_fmts[0].colorspace;
+        fmt		= &veye327_colour_fmts[0];
 	}
-
+    
 	mf->field	= V4L2_FIELD_NONE;
+    
+    if(mf->code == MEDIA_BUS_FMT_YUYV8_2X8){
+        veye327_write_reg(sensor,VEYE327_REG_YUV_SEQ, 0x1);//yuyv
+        sensor->pix.pixelformat = V4L2_PIX_FMT_YUYV; 
+        dev_info(dev,"set pixel format YUYV\n");
+    }else{
+        veye327_write_reg(sensor,VEYE327_REG_YUV_SEQ, 0x0);//uyvy
+        sensor->pix.pixelformat = V4L2_PIX_FMT_UYVY; 
+        dev_info(dev,"set pixel format UYVY\n");
+    }
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
 		return 0;
@@ -680,7 +708,7 @@ static int veye327_enum_mbus_code(struct v4l2_subdev *sd,
 		return -EINVAL;
     }
 	code->code = veye327_colour_fmts[code->index].code;
-    dev_dbg(dev," index is %d format is %d!\n",code->index,code->code);
+    dev_info(dev," index is %d format is %d!\n",code->index,code->code);
 	return 0;
 }
 
