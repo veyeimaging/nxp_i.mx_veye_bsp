@@ -19,8 +19,8 @@ print_usage()
 	echo "    -p2 [param1] 			   param2 of each function"
 	echo "    -b [i2c bus num] 		   i2c bus number"
 	echo "    -d [i2c addr] 		   i2c addr if not default 0x3b"
-	echo "support functions: devid,hdver,wdrmode,videoformat,mirrormode,denoise,agc,lowlight,daynightmode,ircutdir,irtrigger£¬mshutter"
-    echo "cameramode, nodf, capture, csienable,saturation,wdrbtargetbr,wdrtargetbr, brightness ,contrast , sharppen, aespeed,lsc,boardmodel,yuvseq,i2cauxenable,i2cwen"
+	echo "support functions: devid,hdver,sensorid,wdrmode,videoformat,mirrormode,denoise,agc,lowlight,daynightmode,ircutdir,irtrigger£¬mshutter"
+    echo "cameramode, nodf, capture, csienable,saturation,wdrbtargetbr,wdrtargetbr, brightness ,contrast , sharppen, aespeed,lsc,boardmodel,yuvseq,i2cauxenable,i2cwen,awbgain,wbmode,mwbgain"
 }
 
 ######################parse arg###################################
@@ -121,6 +121,28 @@ read_hardver()
 	res=$(./i2c_read $I2C_DEV $I2C_ADDR  0x00 );
 	hardver=$?;
 	printf "hardware version is 0x%2x\n" $hardver;
+}
+#define SENSOR_TYPR_ADDR_L    0x20
+#define SENSOR_TYPR_ADDR_H    0x21
+#define BOARD_TYPR_ADDR    0x25
+read_sensorid()
+{
+    local sensorid_l=0;
+    local sensorid_h=0;
+    local board_type=0;
+	local res=0;
+    res=$(./i2c_read $I2C_DEV $I2C_ADDR 0x20);
+	sensorid_l=$?;
+    res=$(./i2c_read $I2C_DEV $I2C_ADDR 0x21);
+	sensorid_h=$?;
+    res=$(./i2c_read $I2C_DEV $I2C_ADDR 0x25);
+	board_type=$?;
+    printf "r sensor id is IMX%2x%2x;" $sensorid_l $sensorid_h;
+    if [ $board_type -eq 76 ] ; then
+		printf " ONE board\n";
+	else
+        printf " TWO board\n";
+    fi
 }
 
 read_wdrmode()
@@ -403,6 +425,32 @@ write_csienable()
 	printf "w csienable is 0x%2x\n" $PARAM1;
 }
 
+read_yuvseq()
+{
+	local yuvseq=0;
+	local res=0;
+	res=$(./i2c_read $I2C_DEV $I2C_ADDR 0x1E );
+	yuvseq=$?;
+    if [ $yuvseq -eq 1 ] ; then
+		printf "r YUVseq is YUYV\n";
+    else
+        printf "r YUVseq is UYVY\n";
+	fi
+}
+
+write_yuvseq()
+{
+	local csienable=0;
+	local res=0;
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR 0x1E $PARAM1);
+    if [ $PARAM1 = "YUYV" ] ; then
+		res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x1E 0x1);
+    else
+        res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x1E 0x0);
+	fi
+	printf "w YUVseq is %s\n" $PARAM1;
+}
+
 read_board_model()
 {
     local board_model=0;
@@ -422,7 +470,7 @@ read_i2c_aux_enable()
 	local res=0;
 	res=$(./i2c_read $I2C_DEV $I2C_ADDR 0x1F);
 	i2c_aux_enable=$?;
-	if [ $board_model -eq 238 ] ; then
+	if [ $i2c_aux_enable -eq 238 ] ; then
 		printf "i2c aux is enable \n";
 	else
 		printf "i2c aux is disable\n";
@@ -789,6 +837,90 @@ write_lsc()
 	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x13 0x00 );
     printf "w LSC enable is 0x%2x and strength %02x \n" $PARAM1 $PARAM2;
 }
+read_awbgain()
+{
+	local awbrgain=0;
+    local awbbgain=0;
+	local res=0;
+    res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x10 0x5E );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x11 0x0B );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x13 0x01 );
+    sleep 0.01;
+	res=$(./i2c_read $I2C_DEV $I2C_ADDR  0x14 );
+	awbrgain=$?;
+    sleep 0.01;
+    res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x10 0x5E );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x11 0x0F );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x13 0x01 );
+    sleep 0.01;
+	res=$(./i2c_read $I2C_DEV $I2C_ADDR  0x14 );
+	awbbgain=$?;
+    
+	printf "r awb Rgain is 0x%2x Bgain is 0x%2x\n" $awbrgain $awbbgain ;
+}
+
+read_wbmode()
+{
+	local wbmode=0;
+	local res=0;
+    res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x10 0xDA );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x11 0x34 );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x13 0x01 );
+    sleep 0.01;
+	res=$(./i2c_read $I2C_DEV $I2C_ADDR  0x14 );
+	wbmode=$?;
+	printf "r awb mode is 0x%2x \n" $wbmode ;
+}
+
+write_wbmode()
+{
+    local wbmode=0;
+	local res=0;
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x10 0xDA );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x11 0x34 );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x12 $PARAM1);
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x13 0x00 );
+	printf "w wbmode is 0x%2x\n" $PARAM1;
+}
+
+read_mwbgain()
+{
+	local mwbrgain=0;
+    local mwbbgain=0;
+	local res=0;
+    
+    res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x10 0xDA );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x11 0x2E );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x13 0x01 );
+    sleep 0.01;
+	res=$(./i2c_read $I2C_DEV $I2C_ADDR  0x14 );
+	mwbrgain=$?;
+    sleep 0.01;
+    res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x10 0xDA );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x11 0x29 );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x13 0x01 );
+    sleep 0.01;
+	res=$(./i2c_read $I2C_DEV $I2C_ADDR  0x14 );
+	mwbbgain=$?;
+    
+	printf "r mwb Rgain is 0x%2x Bgain is 0x%2x \n" $mwbrgain $mwbbgain ;
+}
+
+write_mwbgain()
+{
+	local res=0;
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x10 0xDA );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x11 0x2E );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x12 $PARAM1);
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x13 0x00 );
+    sleep 0.01;
+    res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x10 0xDA );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x11 0x29 );
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x12 $PARAM2);
+	res=$(./i2c_write $I2C_DEV $I2C_ADDR  0x13 0x00 );
+    
+	printf "w mwb Rgain is 0x%2x Bgain is 0x%2x \n" $PARAM1 $PARAM2;
+}
 
 #######################Action# BEGIN##############################
 
@@ -802,6 +934,9 @@ if [ ${MODE} = "read" ] ; then
 		"hdver"|"hardwareversion")
 			read_hardver;
 			;;
+        "sensorid")
+            read_sensorid;
+            ;;
 		"wdrmode")
 			read_wdrmode;
 			;;
@@ -880,6 +1015,18 @@ if [ ${MODE} = "read" ] ; then
         "i2cwen")
 			read_i2c_write_enable;
 			;;
+        "awbgain")
+			read_awbgain;
+			;;
+        "wbmode")
+			read_wbmode;
+			;;
+        "mwbgain")
+			read_mwbgain;
+			;;
+        "yuvseq")
+            read_yuvseq;
+                ;;
 	esac
 fi
 
@@ -970,5 +1117,17 @@ if [ ${MODE} = "write" ] ; then
         "i2cwen")
 			write_i2c_write_enable;
 			;;
+        "wbmode")
+			write_wbmode;
+			;;
+        "mwbgain")
+			write_mwbgain;
+			;;
+        "awbexpt")
+                write_awbexpt;
+                ;;
+        "yuvseq")
+            write_yuvseq;
+                ;;
 	esac
 fi
