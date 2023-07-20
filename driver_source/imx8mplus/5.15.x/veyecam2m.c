@@ -935,9 +935,12 @@ static int veyecam2m_probe(struct i2c_client *client)
 	}
 
 	/* Request optional enable pin */
-	veyecam2m->reset_gpio = devm_gpiod_get_optional(dev, "reset",
+	veyecam2m->reset_gpio = devm_gpiod_get_optional(dev, "powerdown",
 						     GPIOD_OUT_HIGH);
-
+	if (IS_ERR(veyecam2m->reset_gpio)){
+		dev_err(dev, "failed to get powerdown GPIO\n");
+	}
+    
 	/*
 	 * The sensor must be powered for veyecam2m_identify_module()
 	 * to be able to read the CHIP_ID register
